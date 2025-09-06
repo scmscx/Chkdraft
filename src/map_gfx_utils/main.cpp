@@ -1,5 +1,7 @@
 #include "gfx_util.h"
 #include <iostream>
+#include <thread>
+#include <filesystem>
 
 extern Logger logger;
 
@@ -67,26 +69,74 @@ void testRender(GfxUtil & gfxUtil, Renderer & renderer, Sc::Terrain::Tileset til
     logger.log(GfxUtilInfo) << MapTimings(mapStartTime, mapLoadTime, animTime, imageTimes, mapFinishTime) << std::endl;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    try {
-        auto startInitialLoad = std::chrono::high_resolution_clock::now();
-        GfxUtil gfxUtil {};
-        gfxUtil.loadScData(); // Could provide a path string to this method
-        auto renderer = gfxUtil.createRenderer(RenderSkin::Classic);
-        auto endInitialLoad = std::chrono::high_resolution_clock::now();
+    if (argc != 4) {
+        logger.info() << "Usage: " << argv[0] << " <starcraft_path> <input_folder> <output_folder>" << std::endl;
+    }
+
+    auto starcraftPath = argv[1];
+    auto inputFolder = argv[2];
+    auto outputFolder = argv[3];
+
+    auto startInitialLoad = std::chrono::high_resolution_clock::now();
+    GfxUtil gfxUtil {};
+    gfxUtil.loadScData(starcraftPath);
+    auto renderer = gfxUtil.createRenderer(RenderSkin::Classic);
+    auto endInitialLoad = std::chrono::high_resolution_clock::now();
 
         logger.log(GfxUtilInfo) << "Initial load completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(endInitialLoad-startInitialLoad).count() << "ms" << std::endl;
 
-        testRender(gfxUtil, *renderer, Sc::Terrain::Tileset::SpacePlatform, getDefaultFolder() + "space.webp");
-        testRender(gfxUtil, *renderer, Sc::Terrain::Tileset::Jungle, getDefaultFolder() + "jungle.webp");
-        testRender(gfxUtil, *renderer, Sc::Terrain::Tileset::SpacePlatform, getDefaultFolder() + "space2.webp");
-    } catch ( std::exception & e ) {
-        logger.fatal("Unhandled exception: ", e);
-        throw;
-    } catch ( ... ) {
-        logger.fatal("Unknown unhandled exception");
-        throw;
+    // testRender(gfxUtil, *renderer, Sc::Terrain::Tileset::SpacePlatform, getDefaultFolder() + "space.webp");
+    // testRender(gfxUtil, *renderer, Sc::Terrain::Tileset::Jungle, getDefaultFolder() + "jungle.webp");
+    // testRender(gfxUtil, *renderer, Sc::Terrain::Tileset::SpacePlatform, getDefaultFolder() + "space2.webp");
+
+    while (true) {
+        // Find one file in the input folder
+        std::string inputFilePath;
+        std::string inputFileName;
+        for (const auto& entry : std::filesystem::directory_iterator(inputFolder)) {
+            if (entry.is_regular_file()) {
+                inputFilePath = entry.path().string();
+                inputFileName = entry.path().filename().string();
+                break;
+            }
+        }
+
+        if (inputFilePath.empty()) {
+            // Sleep for 1 second
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
+
+        logger.info() << "Processing " << inputFilePath << std::endl;
+        auto outputFilePath = std::string(outputFolder) + "/" + inputFileName + ".webp";
+
+        // Load the map
+        auto mapStartTime = std::chrono::high_resolution_clock::now();
+        auto map = gfxUtil.loadMap(inputFilePath);
+        auto mapLoadTime = std::chrono::high_resolution_clock::now();
+
+        auto animTime = map->simulateAnim(52); // Simulate n anim ticks occuring, need at least 52 to extend all the tanks
+
+        //renderer.displayInGui(*map, options, true);
+        Renderer::Options options {
+            .drawStars = true,
+            .drawTerrain = true,
+            .drawActors = true,
+            .drawFogPlayer = std::nullopt,
+            .drawLocations = false,
+            .displayFps = false
+        };
+        auto imageTimes = renderer->saveMapImageAsWebP(*map, options, outputFilePath);
+        auto mapFinishTime = std::chrono::high_resolution_clock::now();
+        logger << "Output file: " << outputFilePath << std::endl << MapTimings(mapStartTime, mapLoadTime, animTime, imageTimes, mapFinishTime) << std::endl;
+
+        // Delete the input file
+        if (std::filesystem::exists(inputFilePath)) {
+            std::filesystem::remove(inputFilePath);
+        }
     }
+
     return 0;
 }
