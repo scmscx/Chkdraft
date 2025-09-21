@@ -94,66 +94,68 @@ int main(int argc, char* argv[])
     while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        try {
-            // Find one file in the input folder
-            std::string inputFilePath;
-            std::string inputFileName;
-            for (const auto& entry : std::filesystem::directory_iterator(inputFolder)) {
-                if (entry.is_regular_file()) {
-                    inputFilePath = entry.path().string();
-                    inputFileName = entry.path().filename().string();
-                    break;
-                }
-            }
-
-            if (inputFilePath.empty()) {
+        for (const auto& entry : std::filesystem::directory_iterator(inputFolder)) {
+            if (!entry.is_regular_file()) {
                 continue;
             }
+            
+            std::string inputFilePath = entry.path().string();
+            std::string inputFileName = entry.path().filename().string();
 
             // the filename is likely in the format <chkblob>.scx, we want to remove the extension, if it exists
             std::string outputFileName;
-            if (inputFileName.size() > 4 && inputFileName.substr(inputFileName.size() - 4) == ".scx") {
+            if (inputFileName.size() > 4 && (
+                        (inputFileName.substr(inputFileName.size() - 4) == ".scx") || 
+                        (inputFileName.substr(inputFileName.size() - 4) == ".scm")
+                    )
+                )
+            {
                 outputFileName = inputFileName.substr(0, inputFileName.size() - 4);
             } else {
-                outputFileName = inputFileName;
+                // not a map file.
+                continue;
             }
 
-            logger.info() << "Processing " << inputFilePath << std::endl;
-            auto tempOutputFilePath = std::string(outputDirectory) + "/" + outputFileName + ".tmp";
+            try {
+                logger.info() << "Processing " << inputFilePath << std::endl;
+                auto tempOutputFilePath = std::string(outputDirectory) + "/" + outputFileName + ".tmp";
 
-            // Load the map
-            auto mapStartTime = std::chrono::high_resolution_clock::now();
-            auto map = gfxUtil.loadMap(inputFilePath);
-            auto mapLoadTime = std::chrono::high_resolution_clock::now();
+                // Load the map
+                auto mapStartTime = std::chrono::high_resolution_clock::now();
+                auto map = gfxUtil.loadMap(inputFilePath);
+                if (!map) {
+                    logger.error() << "Failed to load map " << inputFilePath << std::endl;
+                    std::filesystem::rename(inputFilePath, inputFilePath + ".failed");
+                    continue;
+                }
+                auto mapLoadTime = std::chrono::high_resolution_clock::now();
 
-            auto animTime = map->simulateAnim(52); // Simulate n anim ticks occuring, need at least 52 to extend all the tanks
+                auto animTime = map->simulateAnim(52); // Simulate n anim ticks occuring, need at least 52 to extend all the tanks
 
-            //renderer.displayInGui(*map, options, true);
-            Renderer::Options options {
-                .drawStars = true,
-                .drawTerrain = true,
-                .drawActors = true,
-                .drawFogPlayer = std::nullopt,
-                .drawLocations = false,
-                .displayFps = false
-            };
-            auto imageTimes = renderer->saveMapImageAsWebP(*map, options, tempOutputFilePath);
-            auto mapFinishTime = std::chrono::high_resolution_clock::now();
-            logger << "Output file: " << tempOutputFilePath << std::endl << MapTimings(mapStartTime, mapLoadTime, animTime, imageTimes, mapFinishTime) << std::endl;
+                //renderer.displayInGui(*map, options, true);
+                Renderer::Options options {
+                    .drawStars = true,
+                    .drawTerrain = true,
+                    .drawActors = true,
+                    .drawFogPlayer = std::nullopt,
+                    .drawLocations = false,
+                    .displayFps = false
+                };
+                auto imageTimes = renderer->saveMapImageAsWebP(*map, options, tempOutputFilePath);
+                auto mapFinishTime = std::chrono::high_resolution_clock::now();
+                logger << "Output file: " << tempOutputFilePath << std::endl << MapTimings(mapStartTime, mapLoadTime, animTime, imageTimes, mapFinishTime) << std::endl;
 
-            // rename the tempfile to the correct directory
-            std::filesystem::rename(tempOutputFilePath, std::string(outputDirectory) + "/" + outputFileName + ".webp");
+                // rename the tempfile to the correct directory
+                std::filesystem::rename(tempOutputFilePath, std::string(outputDirectory) + "/" + outputFileName + ".webp");
 
-            // Delete the input file
-            if (std::filesystem::exists(inputFilePath)) {
+                // Delete the input file
                 std::filesystem::remove(inputFilePath);
+
+            } catch (const std::exception& e) {
+                logger.error() << "Some Error: " << e.what() << std::endl;
+            } catch (...) {
+                logger.error() << "Unknown Error" << std::endl;
             }
-        }
-        catch (const std::exception& e) {
-            logger.error() << "Some Error: " <<e.what() << std::endl;
-        }
-        catch (...) {
-            logger.error() << "Unknown Error" << std::endl;
         }
     }
 
