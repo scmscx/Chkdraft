@@ -23,7 +23,8 @@ bool encodeOpenGlViewportImage(int x, int y, int width, int height, EncodedWebP 
     auto clipWidth = width == 16384 ? 16383 : width; // 1-off from maximum, clip the last pixel-column
     auto clipHeight = height == 16384 ? 16383 : height; // 1-off from maximum, clip the last pixel-row
     auto start = std::chrono::high_resolution_clock::now();
-    encodedWebP.size = WebPEncodeLosslessRGB(&pixelData[0], clipWidth, clipHeight, 3*width, &encodedWebP.data); // 22658
+    // encodedWebP.size = WebPEncodeLosslessRGB(&pixelData[0], clipWidth, clipHeight, 3*width, &encodedWebP.data); // 22658
+    encodedWebP.size = WebPEncodeRGB(&pixelData[0], clipWidth, clipHeight, 3*width, 20.0f, &encodedWebP.data);
     auto end = std::chrono::high_resolution_clock::now();
     if ( encodedWebP.size == 0 )
         return false;
