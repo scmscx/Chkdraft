@@ -1856,34 +1856,38 @@ MapGraphics::SelectInfo MapGraphics::getSelInfo(Sc::Sprite::Type spriteType, boo
     };
 }
 
-Animation & MapGraphics::getImage(size_t imageId)
+Animation * MapGraphics::getImage(size_t imageId)
 {
-    return *((*renderDat->images)[imageId]);
+    auto & images = *renderDat->images;
+    if ( imageId >= images.size() || !images[imageId] )
+        return nullptr;
+
+    return images[imageId].get();
 }
 
-Animation & MapGraphics::getImage(Sc::Unit::Type unitType)
+Animation * MapGraphics::getImage(Sc::Unit::Type unitType)
 {
     return getImage(getImageId(unitType));
 }
 
-Animation & MapGraphics::getImage(Sc::Sprite::Type spriteType)
+Animation * MapGraphics::getImage(Sc::Sprite::Type spriteType)
 {
     return getImage(getImageId(spriteType));
 }
 
-Animation & MapGraphics::getImage(Sc::Sprite::Type spriteType, bool isDrawnAsSprite)
+Animation * MapGraphics::getImage(Sc::Sprite::Type spriteType, bool isDrawnAsSprite)
 {
     return isDrawnAsSprite ?
         getImage(spriteType) :
         getImage(Sc::Unit::Type(spriteType));
 }
 
-Animation & MapGraphics::getImage(const Chk::Unit & unit)
+Animation * MapGraphics::getImage(const Chk::Unit & unit)
 {
     return getImage(getImageId(unit));
 }
 
-Animation & MapGraphics::getImage(const Chk::Sprite & sprite)
+Animation * MapGraphics::getImage(const Chk::Sprite & sprite)
 {
     return getImage(getImageId(sprite));
 }
@@ -3178,8 +3182,8 @@ void MapGraphics::drawUnitSelection(Sc::Unit::Type unitType, s32 x, s32 y)
     auto [selImageId, selOffset] = getSelInfo(unitType);
     if ( loadSettings.skinId == Skin::Id::Classic )
         drawClassicImage(*renderDat->tiles->tilesetGrp.palette, x, y+selOffset, 0, selImageId, std::nullopt);
-    else
-        drawSelectionImage(getImage(selImageId), x, y+selOffset, 0, 0, 0xFF00F518);
+    else if ( auto * anim = getImage(selImageId) )
+        drawSelectionImage(*anim, x, y+selOffset, 0, 0, 0xFF00F518);
 }
 
 void MapGraphics::drawSpriteSelection(Sc::Sprite::Type spriteType, s32 x, s32 y, bool isDrawnAsSprite)
@@ -3187,8 +3191,8 @@ void MapGraphics::drawSpriteSelection(Sc::Sprite::Type spriteType, s32 x, s32 y,
     auto [selImageId, selOffset] = getSelInfo(spriteType, isDrawnAsSprite);
     if ( loadSettings.skinId == Skin::Id::Classic )
         drawClassicImage(*renderDat->tiles->tilesetGrp.palette, x, y+selOffset, 0, selImageId, std::nullopt);
-    else
-        drawSelectionImage(getImage(selImageId), x, y+selOffset, 0, 0, 0xFFFFFFFF);
+    else if ( auto * anim = getImage(selImageId) )
+        drawSelectionImage(*anim, x, y+selOffset, 0, 0, 0xFFFFFFFF);
 }
 
 void MapGraphics::drawImageSelections()
@@ -3273,26 +3277,29 @@ void MapGraphics::drawActor(const AnimContext & animations, const MapActor & map
             }
             else
             {
+                auto * anim = getImage(image->imageId);
+                if ( !anim ) continue; // Image not loaded for this skin, skip
+
                 switch ( image->drawFunction )
                 {
                 case MapImage::DrawFunction::Cloaked:
-                    drawImage(getImage(image->imageId), image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0x80FFFFFF, getPlayerColor(image->owner, hasCrgb), false, image->flipped);
+                    drawImage(*anim, image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0x80FFFFFF, getPlayerColor(image->owner, hasCrgb), false, image->flipped);
                     break;
                 case MapImage::DrawFunction::Shadow:
-                    drawImage(getImage(image->imageId), image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0x80000000, getPlayerColor(image->owner, hasCrgb), false, image->flipped);
+                    drawImage(*anim, image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0x80000000, getPlayerColor(image->owner, hasCrgb), false, image->flipped);
                     break;
                 case MapImage::DrawFunction::Hallucination:
-                    drawImage(getImage(image->imageId), image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0xFFFFFFFF, getPlayerColor(image->owner, hasCrgb), true, image->flipped);
+                    drawImage(*anim, image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0xFFFFFFFF, getPlayerColor(image->owner, hasCrgb), true, image->flipped);
                     break;
                 case MapImage::DrawFunction::Selection:
                     renderDat->shaders->selectionShader.use();
-                    drawSelectionImage(getImage(image->imageId), image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, image->selColor, 0xFFFFFFFF, image->flipped);
+                    drawSelectionImage(*anim, image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, image->selColor, 0xFFFFFFFF, image->flipped);
                     renderDat->shaders->spriteShader.use();
                     break;
                 case MapImage::DrawFunction::None:
                     break;
                 default:
-                    drawImage(getImage(image->imageId), image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0xFFFFFFFF, getPlayerColor(image->owner, hasCrgb), false, image->flipped);
+                    drawImage(*anim, image->xc+image->xOffset+xOffset, image->yc+image->yOffset+yOffset, image->frame, 0xFFFFFFFF, getPlayerColor(image->owner, hasCrgb), false, image->flipped);
                     break;
                 }
             }

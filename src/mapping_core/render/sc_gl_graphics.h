@@ -934,12 +934,12 @@ protected:
     };
     SelectInfo getSelInfo(Sc::Unit::Type unitType);
     SelectInfo getSelInfo(Sc::Sprite::Type spriteType, bool isDrawnAsSprite);
-    Animation & getImage(size_t imageId);
-    Animation & getImage(Sc::Unit::Type unitType);
-    Animation & getImage(Sc::Sprite::Type spriteType);
-    Animation & getImage(Sc::Sprite::Type spriteType, bool isDrawnAsSprite);
-    Animation & getImage(const Chk::Unit & unit);
-    Animation & getImage(const Chk::Sprite & sprite);
+    Animation * getImage(size_t imageId);
+    Animation * getImage(Sc::Unit::Type unitType);
+    Animation * getImage(Sc::Sprite::Type spriteType);
+    Animation * getImage(Sc::Sprite::Type spriteType, bool isDrawnAsSprite);
+    Animation * getImage(const Chk::Unit & unit);
+    Animation * getImage(const Chk::Sprite & sprite);
 
 public:
 

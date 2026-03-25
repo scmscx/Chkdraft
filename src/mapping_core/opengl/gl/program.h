@@ -36,7 +36,7 @@ namespace gl
 
         ~Program()
         {
-            if ( programId != 0 )
+            if ( programId != 0 && glfw::isGlContextValid() )
                 glDeleteProgram(*programId);
         }
 

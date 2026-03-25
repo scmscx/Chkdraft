@@ -9,6 +9,34 @@ namespace glfw
     {
         GLFWwindow* window = nullptr;
 
+        ~Window()
+        {
+            if (window != nullptr) {
+                glfwDestroyWindow(window);
+                window = nullptr;
+            }
+        }
+
+        // Prevent copy
+        Window() = default;
+        Window(const Window&) = delete;
+        Window& operator=(const Window&) = delete;
+
+        // Allow move
+        Window(Window&& other) noexcept : window(other.window) {
+            other.window = nullptr;
+        }
+        Window& operator=(Window&& other) noexcept {
+            if (this != &other) {
+                if (window != nullptr) {
+                    glfwDestroyWindow(window);
+                }
+                window = other.window;
+                other.window = nullptr;
+            }
+            return *this;
+        }
+
         void setVersionHint(int major, int minor)
         {
             glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major);

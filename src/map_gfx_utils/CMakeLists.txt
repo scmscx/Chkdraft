@@ -127,3 +127,57 @@ target_link_libraries(${This} PRIVATE CrossCut MappingCore glad::glad glfw glm::
 else ()
 target_link_libraries(${This} PRIVATE CrossCut MappingCore glad::glad glfw glm::glm Freetype::Freetype harfbuzz::harfbuzz harfbuzz::harfbuzz-subset ICU::uc ICU::i18n WebP::webp WebP::webpdecoder WebP::webpdemux ${OPENGL_LIBRARIES})
 endif ()
+
+# Export build info for Rust build script
+if (PROJECT_IS_TOP_LEVEL)
+  get_directory_property(_ALL_INCLUDE_DIRS INCLUDE_DIRECTORIES)
+  # stb headers are at repo root, not in /include subdir
+  list(APPEND _ALL_INCLUDE_DIRS "${stb_SOURCE_DIR}")
+
+  set(_ALL_LIB_DIRS
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}/cross_cut_lib"
+    "${CMAKE_CURRENT_BINARY_DIR}/mapping_core_lib"
+  )
+
+  # cmake-built static libraries
+  set(_ALL_STATIC_LIBS "MapGfxUtilsLib" "MappingCore" "CrossCut")
+
+  # Collect vcpkg lib dirs and scan for static libraries
+  file(GLOB _VCPKG_LIB_DIRS "${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/*/lib")
+  list(APPEND _ALL_LIB_DIRS ${_VCPKG_LIB_DIRS})
+
+  if (DEFINED ENV{VCPKG_ROOT} AND NOT "$ENV{VCPKG_ROOT}" STREQUAL "")
+    file(GLOB _VCPKG_CLASSIC_LIB_DIRS "$ENV{VCPKG_ROOT}/installed/*/lib")
+    list(APPEND _ALL_LIB_DIRS ${_VCPKG_CLASSIC_LIB_DIRS})
+  endif()
+
+  foreach(_dir ${_VCPKG_LIB_DIRS} ${_VCPKG_CLASSIC_LIB_DIRS})
+    file(GLOB _LIBS "${_dir}/lib*.a")
+    foreach(_lib ${_LIBS})
+      get_filename_component(_name "${_lib}" NAME_WE)
+      string(REGEX REPLACE "^lib" "" _name "${_name}")
+      list(APPEND _ALL_STATIC_LIBS "${_name}")
+    endforeach()
+  endforeach()
+  list(REMOVE_DUPLICATES _ALL_STATIC_LIBS)
+
+  # System libraries
+  set(_ALL_SYSTEM_LIBS "stdc++" "GL" "X11" "pthread" "dl" "m")
+
+  set(_INFO "")
+  foreach(_dir ${_ALL_INCLUDE_DIRS})
+    string(APPEND _INFO "INCLUDE_DIR=${_dir}\n")
+  endforeach()
+  foreach(_dir ${_ALL_LIB_DIRS})
+    string(APPEND _INFO "LIB_DIR=${_dir}\n")
+  endforeach()
+  foreach(_lib ${_ALL_STATIC_LIBS})
+    string(APPEND _INFO "STATIC_LIB=${_lib}\n")
+  endforeach()
+  foreach(_lib ${_ALL_SYSTEM_LIBS})
+    string(APPEND _INFO "SYSTEM_LIB=${_lib}\n")
+  endforeach()
+
+  file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/rust_build_info.txt" CONTENT "${_INFO}")
+endif()
