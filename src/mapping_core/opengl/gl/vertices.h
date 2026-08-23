@@ -1,5 +1,6 @@
 #pragma once
 #include <glad/glad.h>
+#include <glfw/context.h>
 #include <rarecpp/reflect.h>
 #include <array>
 #include <stdexcept>
@@ -50,11 +51,14 @@ namespace gl
 
         ~VerticesBase()
         {
-            if ( vbo != 0 )
-                glDeleteBuffers(1, &vbo);
+            if ( glfw::isGlContextValid() )
+            {
+                if ( vbo != 0 )
+                    glDeleteBuffers(1, &vbo);
 
-            if ( vao != 0 )
-                glDeleteVertexArrays(1, &vao);
+                if ( vao != 0 )
+                    glDeleteVertexArrays(1, &vao);
+            }
         }
 
         void bind()

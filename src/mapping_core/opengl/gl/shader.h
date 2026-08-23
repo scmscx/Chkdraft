@@ -1,5 +1,6 @@
 #pragma once
 #include <glad/glad.h>
+#include <glfw/context.h>
 #include "unique_resource.h"
 #include <fstream>
 #include <stdexcept>
@@ -66,7 +67,7 @@ namespace gl
 
         ~Shader()
         {
-            if ( shaderId != 0 )
+            if ( shaderId != 0 && glfw::isGlContextValid() )
                 glDeleteShader(*shaderId);
         }
 

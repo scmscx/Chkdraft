@@ -1,5 +1,6 @@
 #pragma once
 #include <glad/glad.h>
+#include <glfw/context.h>
 #include "unique_resource.h"
 #include <stdexcept>
 #include <string>
@@ -35,7 +36,7 @@ namespace gl
 
         ~Texture()
         {
-            if ( tex->total > 0 && tex->id != 0 )
+            if ( tex->total > 0 && tex->id != 0 && glfw::isGlContextValid() )
                 glDeleteTextures(tex->total, &tex->id);
         }
 
@@ -94,8 +95,9 @@ namespace gl
         void bind()
         {
             glBindTexture(tex->type, tex->id);
-            if ( auto error = glGetError(); error != GL_NO_ERROR ) // GL_INVALID_FRAMEBUFFER_OPERATION = 1286
-                throw std::runtime_error("Error binding texture");
+            if ( auto error = glGetError(); error != GL_NO_ERROR )
+                throw std::runtime_error("Error binding texture (GL error " + std::to_string(error)
+                    + ", tex id=" + std::to_string(tex->id) + ", type=" + std::to_string(tex->type) + ")");
         }
 
         void bindToSlot(GLenum textureUnit)
